@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\User;
@@ -8,69 +9,87 @@ use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
-    // Register user baru
+    /**
+     * Register user baru.
+     */
     public function register(Request $request)
     {
-        $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6',
+        // Validasi input
+        $data = $request->validate([
+            'name'                  => 'required|string|max:255',
+            'email'                 => 'required|string|email|max:255|unique:users',
+            'password'              => 'required|string|min:6|confirmed',
         ]);
 
+        // Buat user
         $user = User::create([
-            'name'     => $request->name,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password),
+            'name'     => $data['name'],
+            'email'    => $data['email'],
+            'password' => Hash::make($data['password']),
         ]);
 
-        // Buat token baru
+        // Generate token
         $token = $user->createToken('api_token')->plainTextToken;
 
+        // Response JSON
         return response()->json([
-            'message'      => 'Registrasi berhasil',
-            'access_token' => $token,
-            'token_type'   => 'Bearer',
+            'user'          => $user,
+            'message'       => 'Registrasi berhasil',
+            'access_token'  => $token,
+            'token_type'    => 'Bearer',
         ], 201);
     }
 
-    // Login user
+    /**
+     * Login user.
+     */
     public function login(Request $request)
     {
+        // Validasi input
         $credentials = $request->validate([
             'email'    => 'required|string|email',
             'password' => 'required|string',
         ]);
 
+        // Cek credential
         if (!Auth::attempt($credentials)) {
             return response()->json([
-                'message' => 'Email atau password tidak valid'
+                'message' => 'Email atau password tidak valid',
             ], 401);
         }
 
-        $user = Auth::user();
+        // Ambil user dan buat token baru
+        $user  = Auth::user();
         $token = $user->createToken('api_token')->plainTextToken;
 
         return response()->json([
-            'message'      => 'Login berhasil',
-            'access_token' => $token,
-            'token_type'   => 'Bearer',
+            'user'          => $user,
+            'message'       => 'Login berhasil',
+            'access_token'  => $token,
+            'token_type'    => 'Bearer',
         ], 200);
     }
 
-    // Mendapatkan data user saat ini (profile)
+    /**
+     * Ambil data profil user yang sedang login.
+     */
     public function user(Request $request)
     {
-        return response()->json($request->user());
+        return response()->json($request->user(), 200);
     }
 
-    // Logout (hapus token saat ini)
+    /**
+     * Logout: hapus token yang sedang digunakan.
+     */
     public function logout(Request $request)
     {
         // Hapus token saat ini agar tidak bisa digunakan lagi
-        $request->user()->currentAccessToken()->delete();
+        $request->user()
+                ->currentAccessToken()
+                ->delete();
 
         return response()->json([
-            'message' => 'Logout berhasil'
-        ]);
+            'message' => 'Logout berhasil',
+        ], 200);
     }
 }
